@@ -1,3 +1,4 @@
+import logging
 import sqlite3
 
 from flask import Flask, jsonify, json, render_template, request, url_for, redirect, flash
@@ -36,13 +37,16 @@ def index():
 def post(post_id):
     post = get_post(post_id)
     if post is None:
+      app.logger.info('A non-existing article {} is accessed'.format(post_id))  
       return render_template('404.html'), 404
-    else:
+    else:    
+      app.logger.info('Post "{}" retrieved'.format(post['title']))
       return render_template('post.html', post=post)
 
 # Define the About Us page
 @app.route('/about')
 def about():
+    app.logger.info('The "About Us" page is retrieved')  
     return render_template('about.html')
 
 # Define the post creation functionality 
@@ -60,7 +64,7 @@ def create():
                          (title, content))
             connection.commit()
             connection.close()
-
+            app.logger.info('A new article is created "{}"'.format(title))
             return redirect(url_for('index'))
 
     return render_template('create.html')
@@ -69,27 +73,29 @@ def create():
 # health check endpoint
 @app.route('/healthz')
 def healthz():
-  response = app.response_class(
-          response=json.dumps({"result":"OK - healthy"}),
-          status=200,
-          mimetype='application/json'
-  )
-  return response
+    response = app.response_class(
+            response=json.dumps({"result":"OK - healthy"}),
+            status=200,
+            mimetype='application/json'
+    )
+    return response
 
 
 @app.route('/metrics')
 def metrics():
-  connection = get_db_connection()
-  post_count = connection.execute('SELECT count(*) FROM posts').fetchone()[0]
-  connection.close()
-  # TODO: find a way to count the db connections, as there is no api for that.
-  response = app.response_class(
-          response=json.dumps({"status":"success","code":0,"data":{"db_connection_count": 1, "post_count": post_count}}),
-          status=200,
-          mimetype='application/json'
-  )
-  return response
+    connection = get_db_connection()
+    post_count = connection.execute('SELECT count(*) FROM posts').fetchone()[0]
+    connection.close()
+    # TODO: find a way to count the db connections, as there is no api for that.
+    response = app.response_class(
+            response=json.dumps({"status":"success","code":0,"data":{"db_connection_count": 1, "post_count": post_count}}),
+            status=200,
+            mimetype='application/json'
+    )
+    return response
 
 # start the application on port 3111
 if __name__ == "__main__":
+   logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
+         level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
    app.run(host='0.0.0.0', port='3111')
